@@ -1,0 +1,153 @@
+.provider-profile-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  background: linear-gradient(135deg, #111827, #1f2937, #0f172a);
+}
+
+.provider-profile-container {
+  width: 100%;
+  max-width: 720px;
+  background: rgba(255, 255, 255, 0.98);
+  border-radius: 24px;
+  padding: 2.5rem;
+  box-shadow: 0 25px 60px rgba(15, 23, 42, 0.35);
+}
+
+.profile-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.profile-header h1 {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.profile-header p {
+  color: #6b7280;
+  margin-top: 0.5rem;
+}
+
+.provider-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.provider-form .form-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+}
+
+.provider-form .form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.provider-form label {
+  font-weight: 600;
+  color: #374151;
+}
+
+.provider-form input,
+.provider-form select {
+  padding: 0.9rem 1rem;
+  border-radius: 12px;
+  border: 2px solid #e5e7eb;
+  font-size: 1rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.provider-form input:focus,
+.provider-form select:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+.upload-row {
+  gap: 1.5rem;
+}
+
+.upload-card {
+  background: #f8fafc;
+  border-radius: 16px;
+  padding: 1rem;
+  border: 1px dashed #cbd5f5;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.upload-card span {
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.upload-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px;
+  border: 2px dashed #a5b4fc;
+  padding: 1rem;
+  min-height: 180px;
+  cursor: pointer;
+  background: rgba(165, 180, 252, 0.1);
+  position: relative;
+  overflow: hidden;
+  text-align: center;
+  color: #6366f1;
+  font-weight: 600;
+}
+
+.upload-box input {
+  display: none;
+}
+
+.upload-box img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 10px;
+}
+
+.submit-btn {
+  padding: 1rem 1.25rem;
+  background: linear-gradient(135deg, #2563eb, #3b82f6);
+  color: #fff;
+  border: none;
+  border-radius: 14px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.submit-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 24px rgba(37, 99, 235, 0.3);
+}
+
+.submit-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+@media (max-width: 640px) {
+  .provider-profile-container {
+    padding: 1.5rem;
+  }
+
+  .upload-card {
+    min-height: 220px;
+  }
+}
+
+
