@@ -89,12 +89,48 @@ const ScheduleBookingConfirm = () => {
 
                         <div className="provider-summary-card">
                             <div className="provider-avatar-placeholder">
-                                {provider.name.charAt(0)}
+                                {(provider.imageUrl || provider.profileImageUrl) ? (
+                                    <img
+                                        src={provider.imageUrl || provider.profileImageUrl}
+                                        alt={provider.name}
+                                        style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }}
+                                        onError={(e) => {
+                                            e.target.style.display = 'none';
+                                            if (e.target.nextSibling) {
+                                                e.target.nextSibling.style.display = 'flex';
+                                            }
+                                        }}
+                                    />
+                                ) : null}
+                                <div style={{ display: (provider.imageUrl || provider.profileImageUrl) ? 'none' : 'flex', width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center' }}>
+                                    {provider.name.charAt(0)}
+                                </div>
                             </div>
-                            <div>
-                                <h3>{provider.name}</h3>
+                            <div style={{ flex: 1 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                    <h3 style={{ margin: 0 }}>{provider.name}</h3>
+                                    {provider.rating >= 4 && (
+                                        <span className="verified-badge" title="Verified Provider" style={{
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            width: '20px',
+                                            height: '20px',
+                                            background: 'linear-gradient(135deg, #10b981, #059669)',
+                                            color: 'white',
+                                            borderRadius: '50%',
+                                            fontSize: '0.7rem',
+                                            fontWeight: '800'
+                                        }}>✓</span>
+                                    )}
+                                </div>
                                 <p>{provider.subcategory || 'Service Professional'}</p>
                                 <span className="rating-badge">★ {Number(provider.rating || 0).toFixed(1)}</span>
+                                {provider.completedServices > 0 && (
+                                    <p style={{ fontSize: '0.85rem', color: '#10b981', fontWeight: '600', marginTop: '0.5rem' }}>
+                                        ✓ {provider.completedServices} jobs completed
+                                    </p>
+                                )}
                             </div>
                         </div>
 
@@ -111,9 +147,33 @@ const ScheduleBookingConfirm = () => {
                                 <label>Hourly Rate</label>
                                 <strong>Rs {Number(provider.hourlyRate || 0).toLocaleString()} / hr</strong>
                             </div>
-                            <div className="detail-item">
-                                <label>Estimated Total</label>
+                        </div>
+
+                        {/* Price Breakdown */}
+                        <div className="price-breakdown" style={{ marginTop: '20px', padding: '15px', background: '#f9fafb', borderRadius: '8px' }}>
+                            <h4 style={{ marginBottom: '12px', color: '#374151' }}>💰 Cost Breakdown</h4>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                                <span>Service Cost ({formData.durationHours}h × Rs {Number(provider.hourlyRate || 0).toLocaleString()})</span>
                                 <strong>Rs {(Number(provider.hourlyRate || 0) * Number(formData.durationHours)).toLocaleString()}</strong>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                                <span>Platform Fee (10%)</span>
+                                <strong>Rs {((Number(provider.hourlyRate || 0) * Number(formData.durationHours)) * 0.10).toLocaleString()}</strong>
+                            </div>
+                            <hr style={{ margin: '10px 0', border: 'none', borderTop: '1px solid #e0e0e0' }} />
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
+                                <span style={{ fontSize: '1.1rem', fontWeight: '600' }}>Total Cost</span>
+                                <strong style={{ fontSize: '1.2rem', color: '#7C3AED' }}>Rs {((Number(provider.hourlyRate || 0) * Number(formData.durationHours)) * 1.10).toLocaleString()}</strong>
+                            </div>
+                            <div style={{ padding: '10px', background: '#fff', borderRadius: '6px', border: '1px solid #e5e7eb' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                                    <span>💳 Pay Now (50%):</span>
+                                    <strong style={{ color: '#10b981' }}>Rs {(((Number(provider.hourlyRate || 0) * Number(formData.durationHours)) * 1.10) * 0.50).toLocaleString()}</strong>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                    <span>✅ Pay on Completion (50%):</span>
+                                    <strong style={{ color: '#6b7280' }}>Rs {(((Number(provider.hourlyRate || 0) * Number(formData.durationHours)) * 1.10) * 0.50).toLocaleString()}</strong>
+                                </div>
                             </div>
                         </div>
 
@@ -147,7 +207,7 @@ const ScheduleBookingConfirm = () => {
                                 <button
                                     type="button"
                                     className="btn-secondary"
-                                    onClick={() => navigate(-1)}
+                                    onClick={() => navigate('/booking/schedule')}
                                     disabled={isSubmitting}
                                 >
                                     Back

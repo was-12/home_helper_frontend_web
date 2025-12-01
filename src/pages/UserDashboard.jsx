@@ -25,7 +25,7 @@ const quickActions = [
     description: 'Need help right away? Create a lightning-fast request.',
     cta: 'Book now',
     icon: '⚡',
-    path: '/',
+    path: '/instant-booking',
   },
   {
     title: 'Track Requests',
@@ -57,6 +57,63 @@ const FALLBACK_LEADERBOARD = [
   { userId: 'peer-5', name: 'Kiran Malik', totalSpend: 98500 },
   { userId: 'peer-6', name: 'Umair Siddiqui', totalSpend: 74200 },
 ]
+
+const BookingTimer = ({ expiresAt, onExpire }) => {
+  const [timeLeft, setTimeLeft] = useState(null)
+
+  useEffect(() => {
+    const calculateTimeLeft = () => {
+      if (!expiresAt) return null
+      const now = new Date()
+      const expiration = new Date(expiresAt)
+      const diff = expiration - now
+
+      if (diff <= 0) return 0
+      return Math.floor(diff / 1000) // seconds
+    }
+
+    setTimeLeft(calculateTimeLeft())
+
+    const timer = setInterval(() => {
+      const remaining = calculateTimeLeft()
+      setTimeLeft(remaining)
+      if (remaining === 0) {
+        clearInterval(timer)
+        if (onExpire) onExpire()
+      }
+    }, 1000)
+
+    return () => clearInterval(timer)
+  }, [expiresAt, onExpire])
+
+  const formatTime = (seconds) => {
+    if (seconds === null) return '--:--'
+    if (seconds <= 0) return 'Expired'
+    const mins = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    return `${mins}:${secs.toString().padStart(2, '0')}`
+  }
+
+  if (timeLeft === null || timeLeft <= 0) return null
+
+  return (
+    <div className="timer-badge" style={{
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: '0.5rem',
+      padding: '0.25rem 0.6rem',
+      background: '#fef2f2',
+      color: '#ef4444',
+      border: '1px solid #fecaca',
+      borderRadius: '999px',
+      fontSize: '0.75rem',
+      fontWeight: '600',
+      marginTop: '0.5rem'
+    }}>
+      <span>⏳ {formatTime(timeLeft)}</span>
+    </div>
+  )
+}
 
 const UserDashboard = () => {
   const navigate = useNavigate()
@@ -90,6 +147,58 @@ const UserDashboard = () => {
   })
   const [isSubmittingReview, setIsSubmittingReview] = useState(false)
   const [showChatbot, setShowChatbot] = useState(false)
+  const [showNotifications, setShowNotifications] = useState(false)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [statusFilter, setStatusFilter] = useState('all')
+  const [isCancelling, setIsCancelling] = useState(false)
+
+  const formatDate = (dateString) => {
+    if (!dateString) return ''
+    return new Date(dateString).toLocaleString(undefined, {
+      month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+    })
+  }
+
+  const notifications = useMemo(() => {
+    const notifs = []
+
+    // Booking Accepted Notifications
+    bookings.filter(b => b.status === 'booking_accepted').forEach(b => {
+      notifs.push({
+        type: 'accepted',
+        message: `Your booking for ${b.subcategoryName || b.serviceName} has been accepted. Please proceed to payment.`,
+        time: formatDate(b.statusUpdatedAt || b.updatedAt),
+        icon: '✅'
+      })
+    })
+
+    // Work Completed Notifications
+    bookings.filter(b => b.status === 'completed').forEach(b => {
+      // Only show if recently completed (e.g., within last 24 hours) or unreviewed? 
+      // For now, showing all completed as notifications might be too much, 
+      // but user asked for "if provider clicks that need to be send to user".
+      // Let's limit to recent ones or just show them.
+      notifs.push({
+        type: 'completed',
+        message: `Work for ${b.subcategoryName || b.serviceName} has been marked as completed.`,
+        time: formatDate(b.statusUpdatedAt || b.updatedAt),
+        icon: '🎉'
+      })
+    })
+
+    // Expired Notifications
+    bookings.filter(b => b.status === 'expired').forEach(b => {
+      notifs.push({
+        type: 'expired',
+        message: `Your booking request for ${b.subcategoryName || b.serviceName} has expired.`,
+        time: formatDate(b.statusUpdatedAt || b.updatedAt),
+        icon: '⚠️'
+      })
+    })
+
+    // Sort by time (newest first) - assuming time string is comparable or we parse it
+    return notifs.sort((a, b) => new Date(b.time) - new Date(a.time))
+  }, [bookings])
 
   const quickTextOptions = [
     'Good service',
@@ -148,16 +257,38 @@ const UserDashboard = () => {
 
     fetchProfile()
     fetchBookings()
+    fetchReviews()
     fetchSpendLeaderboard()
 
     // Poll for booking updates every 5 seconds
     const bookingPoll = setInterval(() => fetchBookings(true), 5000)
+
+    // Prevent browser back button - show logout confirmation instead
+    const handlePopState = (event) => {
+      event.preventDefault()
+      const confirmLogout = window.confirm('Do you want to logout? Press OK to logout or Cancel to stay on this page.')
+      if (confirmLogout) {
+        // Assuming handleLogout is defined elsewhere or will be added.
+        // For now, we'll just navigate to login and clear token.
+        localStorage.removeItem('auth_token')
+        localStorage.removeItem('user_data')
+        navigate('/login')
+      } else {
+        // Push state again to prevent navigation
+        window.history.pushState(null, '', window.location.pathname)
+      }
+    }
+
+    // Push initial state
+    window.history.pushState(null, '', window.location.pathname)
+    window.addEventListener('popstate', handlePopState)
 
     return () => {
       clearInterval(bookingPoll)
       if (toastTimerRef.current) {
         clearTimeout(toastTimerRef.current)
       }
+      window.removeEventListener('popstate', handlePopState)
     }
   }, [])
 
@@ -303,6 +434,29 @@ const UserDashboard = () => {
       })
   }, [bookings])
 
+  // NEW: Filtered Bookings based on search and status filter
+  const filteredBookings = useMemo(() => {
+    return bookings
+      .filter(booking => {
+        // Search filter
+        const matchesSearch = searchTerm === '' ||
+          booking.providerName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          booking.serviceName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          booking.subcategoryName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          booking.categoryName?.toLowerCase().includes(searchTerm.toLowerCase())
+
+        // Status filter
+        const matchesStatus = statusFilter === 'all' || booking.status === statusFilter
+
+        return matchesSearch && matchesStatus
+      })
+      .sort((a, b) => {
+        const dateA = new Date(a.statusUpdatedAt || a.createdAt || a.requestedDateTime || 0)
+        const dateB = new Date(b.statusUpdatedAt || b.createdAt || b.requestedDateTime || 0)
+        return dateB - dateA
+      })
+  }, [bookings, searchTerm, statusFilter])
+
   useEffect(() => {
     if (hasRemoteSpendInsights) return
     if (!isBookingsLoading) {
@@ -391,10 +545,7 @@ const UserDashboard = () => {
 
   const formatCurrency = (value) => `Rs ${Number(value || 0).toLocaleString()}`
 
-  const formatDate = (dateString) => {
-    if (!dateString) return 'Not scheduled'
-    return new Date(dateString).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
-  }
+
 
   const renderStatus = (status) => {
     const label = statusLabels[status] || status
@@ -405,6 +556,42 @@ const UserDashboard = () => {
     localStorage.removeItem('auth_token')
     localStorage.removeItem('user_data')
     navigate('/login')
+  }
+
+  // NEW: Cancel Booking Function
+  const handleCancelBooking = async (bookingId) => {
+    if (!confirm('Are you sure you want to cancel this booking? This action cannot be undone.')) {
+      return
+    }
+
+    setIsCancelling(true)
+    try {
+      const response = await apiService.post(`/customer/booking/${bookingId}/cancel`)
+
+      if (!response.error) {
+        showToast({
+          status: 'success',
+          title: 'Booking Cancelled',
+          message: 'Your booking has been cancelled successfully.'
+        })
+        fetchBookings() // Refresh bookings list
+      } else {
+        showToast({
+          status: 'error',
+          title: 'Cancellation Failed',
+          message: response.message || 'Could not cancel booking. Please try again.'
+        })
+      }
+    } catch (error) {
+      console.error('Error cancelling booking:', error)
+      showToast({
+        status: 'error',
+        title: 'Error',
+        message: error.message || 'Failed to cancel booking'
+      })
+    } finally {
+      setIsCancelling(false)
+    }
   }
 
   const openReviewModal = (booking) => {
@@ -495,11 +682,7 @@ const UserDashboard = () => {
     try {
       const response = await apiService.get('/reviews')
       if (!response.error && response.data?.data) {
-        const allReviews = response.data.data
-        const userReviews = allReviews.filter(
-          (review) => review.customerId === profile?.userId || review.customer?.userId === profile?.userId
-        )
-        setReviews(userReviews)
+        setReviews(response.data.data)
       }
     } catch (error) {
       console.error('Error fetching reviews:', error)
@@ -509,8 +692,22 @@ const UserDashboard = () => {
   }
 
   const hasReviewForBooking = (requestId) => {
-    // Use loose equality to handle string/number mismatches
-    return reviews.some(review => review.requestId == requestId)
+    if (!profile?.userId) return false
+
+    return reviews.some(review => {
+      // Handle potential populated requestId (if it's an object)
+      const rId = (typeof review.requestId === 'object' && review.requestId !== null)
+        ? (review.requestId.requestId || review.requestId._id)
+        : review.requestId
+
+      // Handle potential populated customer
+      const cId = (typeof review.customer === 'object' && review.customer !== null)
+        ? (review.customer.userId || review.customer._id)
+        : (review.customerId || review.customer)
+
+      // Compare as strings to avoid type mismatches
+      return String(rId) === String(requestId) && String(cId) === String(profile.userId)
+    })
   }
 
   const fileToDataUrl = (file) => {
@@ -643,40 +840,66 @@ const UserDashboard = () => {
       {/* Top Navigation */}
       <header className="dashboard-top-nav">
         <div className="nav-brand">HomeHelper</div>
-        <div className="nav-tabs">
-          <button
-            className={`nav-tab ${activeTab === 'dashboard' ? 'active' : ''}`}
-            onClick={() => setActiveTab('dashboard')}
-          >
-            Dashboard
-          </button>
+        <div className="nav-actions">
+          <div className="nav-tabs">
+            <button
+              className={`nav-tab ${activeTab === 'dashboard' ? 'active' : ''}`}
+              onClick={() => setActiveTab('dashboard')}
+            >
+              Dashboard
+            </button>
 
-          <button
-            className={`nav-tab ${activeTab === 'profile' ? 'active' : ''}`}
-            onClick={() => setActiveTab('profile')}
-          >
-            Edit Profile
-          </button>
-        </div>
-        <button className="logout-btn-animated" onClick={handleLogout}>
-          <span>Logout</span>
-          <span style={{ fontSize: '1.2rem' }}>→</span>
-        </button>
-      </header>
-
-      {/* Notifications */}
-      {bookings.filter(b => b.status === 'booking_accepted').length > 0 && (
-        <div className="notification-banner">
-          <div className="notification-icon">🔔</div>
-          <div className="notification-content">
-            <strong>Action Required</strong>
-            <p>You have {bookings.filter(b => b.status === 'booking_accepted').length} booking{bookings.filter(b => b.status === 'booking_accepted').length > 1 ? 's' : ''} accepted by providers. Please proceed to payment.</p>
+            <button
+              className={`nav-tab ${activeTab === 'profile' ? 'active' : ''}`}
+              onClick={() => setActiveTab('profile')}
+            >
+              Edit Profile
+            </button>
           </div>
-          <button className="notification-action" onClick={() => handleQuickAction('#bookings')}>
-            View
+
+          {/* Notification Bell */}
+          <div className="notification-wrapper" style={{ position: 'relative' }}>
+            <button
+              className="notification-btn"
+              onClick={() => setShowNotifications(!showNotifications)}
+            >
+              🔔
+              {notifications.length > 0 && (
+                <span className="notification-badge">{notifications.length}</span>
+              )}
+            </button>
+
+            {showNotifications && (
+              <div className="notification-dropdown">
+                <div className="notification-header">
+                  <h3>Notifications</h3>
+                  <button onClick={() => setShowNotifications(false)}>×</button>
+                </div>
+                <div className="notification-list">
+                  {notifications.length === 0 ? (
+                    <p className="no-notifications">No new notifications</p>
+                  ) : (
+                    notifications.map((notif, index) => (
+                      <div key={index} className={`notification-item ${notif.type}`}>
+                        <div className="notif-icon">{notif.icon}</div>
+                        <div className="notif-content">
+                          <p>{notif.message}</p>
+                          <small>{notif.time}</small>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <button className="logout-btn-animated" onClick={handleLogout}>
+            <span>Logout</span>
+            <span style={{ fontSize: '1.2rem' }}>→</span>
           </button>
         </div>
-      )}
+      </header>
 
       {/* Dashboard Tab */}
       {activeTab === 'dashboard' && (
@@ -877,7 +1100,7 @@ const UserDashboard = () => {
                       <button
                         type="button"
                         className="booking-method-card instant-card"
-                        onClick={() => handleQuickAction('/booking/instant')}
+                        onClick={() => handleQuickAction('/instant-booking')}
                       >
                         <div>
                           <p className="method-eyebrow">Need help now?</p>
@@ -933,28 +1156,118 @@ const UserDashboard = () => {
                       <h3>Recent Bookings</h3>
                       <p>Track your accepted and upcoming jobs</p>
                     </div>
-                    <button className="ghost-cta" onClick={() => setShowAllBookings(true)}>
-                      View All
+                    <button className="ghost-cta" onClick={() => navigate('/bookings/history')}>
+                      View All Booking Records
                     </button>
                   </div>
-                  {recentBookings.length === 0 ? (
+
+                  {/* NEW: Search and Filter Controls */}
+                  <div className="booking-filters" style={{
+                    display: 'flex',
+                    gap: '12px',
+                    marginBottom: '20px',
+                    flexWrap: 'wrap'
+                  }}>
+                    <input
+                      type="text"
+                      placeholder="🔍 Search by provider or service..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      style={{
+                        flex: '1',
+                        minWidth: '250px',
+                        padding: '10px 15px',
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '8px',
+                        fontSize: '14px'
+                      }}
+                    />
+                    <select
+                      value={statusFilter}
+                      onChange={(e) => setStatusFilter(e.target.value)}
+                      style={{
+                        padding: '10px 15px',
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '8px',
+                        fontSize: '14px',
+                        background: '#fff',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <option value="all">All Bookings</option>
+                      <option value="pending">Pending</option>
+                      <option value="booking_accepted">Awaiting Payment</option>
+                      <option value="payment_pending">Payment Pending</option>
+                      <option value="payment_confirmed">Payment Confirmed</option>
+                      <option value="booked">Booked</option>
+                      <option value="in_progress">In Progress</option>
+                      <option value="completed">Completed</option>
+                      <option value="cancelled">Cancelled</option>
+                      <option value="expired">Expired</option>
+                    </select>
+                  </div>
+                  {filteredBookings.length === 0 ? (
                     <div className="empty-state">
-                      <p>No bookings yet. Start by creating your first request.</p>
+                      <p>{searchTerm || statusFilter !== 'all' ? 'No bookings match your filters.' : 'No bookings yet. Start by creating your first request.'}</p>
                     </div>
                   ) : (
                     <div className="user-bookings-list">
-                      {recentBookings.map((booking) => (
+                      {filteredBookings.slice(0, showAllBookings ? undefined : 4).map((booking) => (
                         <div key={booking.requestId} className="user-booking-card">
                           <div className="booking-row">
-                            <div>
-                              <p className="service-name">
-                                {booking.subcategoryName || booking.serviceName || 'Service'}
-                              </p>
-                              <span className="booking-provider">
-                                {booking.provider?.name || 'Provider assigning'}
-                              </span>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                              {/* Provider Avatar */}
+                              <div style={{
+                                width: '48px',
+                                height: '48px',
+                                borderRadius: '12px',
+                                overflow: 'hidden',
+                                background: 'linear-gradient(135deg, #e0e7ff, #c7d2fe)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                flexShrink: 0,
+                                boxShadow: '0 2px 5px rgba(0,0,0,0.05)'
+                              }}>
+                                {booking.provider?.imageUrl ? (
+                                  <img
+                                    src={booking.provider.imageUrl}
+                                    alt={booking.provider.name}
+                                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                    onError={(e) => {
+                                      e.target.style.display = 'none';
+                                      e.target.nextSibling.style.display = 'flex';
+                                    }}
+                                  />
+                                ) : null}
+                                <span style={{
+                                  display: booking.provider?.imageUrl ? 'none' : 'flex',
+                                  fontSize: '1.2rem',
+                                  fontWeight: '700',
+                                  color: '#4f46e5'
+                                }}>
+                                  {(booking.provider?.name || booking.providerName || 'P').charAt(0).toUpperCase()}
+                                </span>
+                              </div>
+
+                              <div>
+                                <p className="service-name">
+                                  {booking.subcategoryName || booking.serviceName || 'Service'}
+                                </p>
+                                <span className="booking-provider">
+                                  {booking.provider?.name || booking.providerName || 'Provider assigning'}
+                                </span>
+                              </div>
                             </div>
-                            {renderStatus(booking.status)}
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '5px' }}>
+                              {renderStatus(booking.status)}
+                              {booking.status === 'pending' && booking.bookingExpiresAt && (
+                                <BookingTimer
+                                  expiresAt={booking.bookingExpiresAt}
+                                  onExpire={() => fetchBookings()}
+                                />
+                              )}
+                            </div>
                           </div>
                           <div className="booking-row subtle">
                             <span>Scheduled: {formatDate(booking.requestedDateTime)}</span>
@@ -965,6 +1278,82 @@ const UserDashboard = () => {
                               Payment: {booking.paymentStatus.replace('_', ' ')}
                             </div>
                           )}
+
+                          {/* NEW: Provider Contact Display (when booking accepted) */}
+                          {['booking_accepted', 'payment_confirmed', 'booked', 'in_progress'].includes(booking.status) && booking.providerPhone && (
+                            <div style={{
+                              marginTop: '12px',
+                              padding: '12px',
+                              background: '#f0fdf4',
+                              borderRadius: '8px',
+                              border: '1px solid #86efac'
+                            }}>
+                              <h4 style={{ fontSize: '14px', marginBottom: '8px', color: '#166534' }}>
+                                📞 Provider Contact
+                              </h4>
+                              <p style={{ fontSize: '13px', marginBottom: '8px', color: '#374151' }}>
+                                Phone: <strong>{booking.providerPhone}</strong>
+                              </p>
+                              <div style={{ display: 'flex', gap: '8px' }}>
+                                <button
+                                  onClick={() => window.open(`tel:${booking.providerPhone}`)}
+                                  style={{
+                                    flex: 1,
+                                    padding: '8px 12px',
+                                    background: '#10b981',
+                                    color: '#fff',
+                                    border: 'none',
+                                    borderRadius: '6px',
+                                    fontSize: '13px',
+                                    cursor: 'pointer',
+                                    fontWeight: '500'
+                                  }}
+                                >
+                                  📞 Call
+                                </button>
+                                <button
+                                  onClick={() => window.open(`https://wa.me/${booking.providerPhone?.replace(/[^0-9]/g, '')}`)}
+                                  style={{
+                                    flex: 1,
+                                    padding: '8px 12px',
+                                    background: '#25D366',
+                                    color: '#fff',
+                                    border: 'none',
+                                    borderRadius: '6px',
+                                    fontSize: '13px',
+                                    cursor: 'pointer',
+                                    fontWeight: '500'
+                                  }}
+                                >
+                                  💬 WhatsApp
+                                </button>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* NEW: Cancel Button (for cancellable statuses) */}
+                          {['pending', 'booking_accepted', 'payment_pending'].includes(booking.status) && (
+                            <button
+                              className="cancel-booking-btn"
+                              onClick={() => handleCancelBooking(booking.requestId)}
+                              disabled={isCancelling}
+                              style={{
+                                marginTop: '10px',
+                                padding: '8px 16px',
+                                background: '#fee2e2',
+                                color: '#dc2626',
+                                border: '1px solid #fecaca',
+                                borderRadius: '6px',
+                                fontSize: '13px',
+                                cursor: 'pointer',
+                                fontWeight: '500',
+                                width: '100%'
+                              }}
+                            >
+                              {isCancelling ? 'Cancelling...' : '❌ Cancel Booking'}
+                            </button>
+                          )}
+
                           {booking.status === 'completed' && (
                             hasReviewForBooking(booking.requestId) ? (
                               <div className="review-submitted-badge">
@@ -1175,3 +1564,4 @@ const UserDashboard = () => {
 }
 
 export default UserDashboard
+// Refreshed

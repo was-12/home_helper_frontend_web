@@ -37,6 +37,17 @@ const ScheduleBooking = () => {
   const [toast, setToast] = useState(null)
   const toastTimerRef = useRef(null)
 
+  // Refs for auto-scrolling
+  const subcategoryRef = useRef(null)
+  const locationRef = useRef(null)
+  const dateTimeRef = useRef(null)
+  const resultsRef = useRef(null)
+
+  // Scroll to top on mount
+  useEffect(() => {
+    window.scrollTo(0, 0)
+  }, [])
+
   // --- Effects ---
   useEffect(() => {
     const token = localStorage.getItem('auth_token')
@@ -47,8 +58,19 @@ const ScheduleBooking = () => {
     loadCategories()
     loadLocations()
 
+    // Handle browser back button - navigate to dashboard
+    const handlePopState = (event) => {
+      event.preventDefault()
+      navigate('/dashboard', { replace: true })
+    }
+
+    // Push initial state
+    window.history.pushState(null, '', window.location.pathname)
+    window.addEventListener('popstate', handlePopState)
+
     return () => {
       if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
+      window.removeEventListener('popstate', handlePopState)
     }
   }, [navigate])
 
@@ -109,11 +131,31 @@ const ScheduleBooking = () => {
     setSelectedSubcategory(null)
     setSubcategories(category.subcategories || [])
     setProviders([])
+
+    // Auto-scroll to subcategories
+    setTimeout(() => {
+      subcategoryRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 100)
   }
 
   const handleSubcategorySelect = (subcategory) => {
     setSelectedSubcategory(subcategory)
     setProviders([])
+
+    // Auto-scroll to location
+    setTimeout(() => {
+      locationRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }, 100)
+  }
+
+  const handleAreaChange = (selectedArea) => {
+    setArea(selectedArea)
+    if (selectedArea) {
+      // Auto-scroll to date/time form
+      setTimeout(() => {
+        dateTimeRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }, 100)
+    }
   }
 
   const handleFormChange = (field, value) => {
@@ -168,10 +210,35 @@ const ScheduleBooking = () => {
           )
         }
 
-        setProviders(fetchedProviders)
+        // Sort providers by priority: earnings, bookings, and rating
+        const sortedProviders = fetchedProviders.sort((a, b) => {
+          // Calculate estimated earnings (completedServices * hourlyRate)
+          const earningsA = (a.completedServices || 0) * (a.hourlyRate || 0)
+          const earningsB = (b.completedServices || 0) * (b.hourlyRate || 0)
 
-        if (fetchedProviders.length > 0) {
-          showToast({ status: 'success', title: 'Providers Found', message: `Found ${fetchedProviders.length} available providers.` })
+          // Priority 1: Higher earnings
+          if (earningsB !== earningsA) {
+            return earningsB - earningsA
+          }
+
+          // Priority 2: More completed bookings
+          if ((b.completedServices || 0) !== (a.completedServices || 0)) {
+            return (b.completedServices || 0) - (a.completedServices || 0)
+          }
+
+          // Priority 3: Higher rating
+          return (b.rating || 0) - (a.rating || 0)
+        })
+
+        setProviders(sortedProviders)
+
+        // Auto-scroll to results
+        setTimeout(() => {
+          resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        }, 100)
+
+        if (sortedProviders.length > 0) {
+          showToast({ status: 'success', title: 'Providers Found', message: `Found ${sortedProviders.length} top providers.` })
         } else {
           showToast({ status: 'info', title: 'No providers found', message: 'No providers available for this slot in your city.' })
         }
@@ -256,7 +323,7 @@ const ScheduleBooking = () => {
 
             {/* Subcategory Selection */}
             {selectedCategory && (
-              <div className="form-group">
+              <div className="form-group subcategory-container" ref={subcategoryRef}>
                 <label>Choose Subcategory</label>
                 <div className="subcategory-grid">
                   {subcategories.map((subcategory) => (
@@ -275,7 +342,7 @@ const ScheduleBooking = () => {
 
             {/* Location Selection */}
             {selectedSubcategory && (
-              <div className="form-group-row">
+              <div className="form-group-row subcategory-container" ref={locationRef}>
                 <div className="form-group">
                   <label>City</label>
                   <select value={city} onChange={(e) => handleCityChange(e.target.value)}>
@@ -285,7 +352,7 @@ const ScheduleBooking = () => {
                 </div>
                 <div className="form-group">
                   <label>Area</label>
-                  <select value={area} onChange={(e) => setArea(e.target.value)} disabled={!city}>
+                  <select value={area} onChange={(e) => handleAreaChange(e.target.value)} disabled={!city}>
                     <option value="">Select Area</option>
                     {areas.map(a => <option key={a} value={a}>{a}</option>)}
                   </select>
@@ -297,7 +364,7 @@ const ScheduleBooking = () => {
             {city && area && (
               <>
                 <h2 style={{ marginTop: '2rem' }}>2. Set Date & Time</h2>
-                <form className="booking-form" onSubmit={handleFindProviders}>
+                <form className="booking-form subcategory-container" onSubmit={handleFindProviders} ref={dateTimeRef}>
                   <div className="form-group-row">
                     <div className="form-group">
                       <label htmlFor="date">Date</label>
@@ -354,7 +421,7 @@ const ScheduleBooking = () => {
           </section>
 
           {/* Results Section */}
-          <section className="booking-results">
+          <section className="booking-results subcategory-container" ref={resultsRef}>
             <h3>Available Providers</h3>
             {providers.length === 0 ? (
               <div className="empty-hint">
@@ -379,6 +446,9 @@ const ScheduleBooking = () => {
 }
 
 export default ScheduleBooking
+
+
+
 
 
 

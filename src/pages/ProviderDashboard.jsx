@@ -123,6 +123,33 @@ const ProviderDashboard = () => {
     }
     setToast(null)
   }
+
+  // Custom Confirmation Modal State
+  const [confirmationModal, setConfirmationModal] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: null,
+    type: 'info', // info, danger, success
+    confirmText: 'Confirm',
+    cancelText: 'Cancel'
+  })
+
+  const closeConfirmationModal = () => {
+    setConfirmationModal(prev => ({ ...prev, isOpen: false }))
+  }
+
+  const showConfirmation = ({ title, message, onConfirm, type = 'info', confirmText = 'Confirm', cancelText = 'Cancel' }) => {
+    setConfirmationModal({
+      isOpen: true,
+      title,
+      message,
+      onConfirm,
+      type,
+      confirmText,
+      cancelText
+    })
+  }
   const [activeHeroIndex, setActiveHeroIndex] = useState(0)
 
   useEffect(() => {
@@ -227,6 +254,8 @@ const ProviderDashboard = () => {
           ? activeData.bookings
           : (Array.isArray(activeData) ? activeData : [])
 
+        // Sort by createdAt descending (newest first)
+        activeBookings.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
         setPendingBookings(activeBookings)
       } else {
         setPendingBookings([])
@@ -239,6 +268,8 @@ const ProviderDashboard = () => {
           ? completedData.bookings
           : (Array.isArray(completedData) ? completedData : [])
 
+        // Sort by completedAt descending (most recently completed first)
+        completedBookingsList.sort((a, b) => new Date(b.completedAt || b.createdAt) - new Date(a.completedAt || a.createdAt))
         setCompletedBookings(completedBookingsList)
       } else {
         setCompletedBookings([])
@@ -259,6 +290,8 @@ const ProviderDashboard = () => {
           return expiresAt > now
         })
 
+        // Sort by createdAt descending (newest first)
+        activeRequests.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
         setInstantRequests(activeRequests)
       } else {
         setInstantRequests([])
@@ -273,31 +306,38 @@ const ProviderDashboard = () => {
     }
   }
 
-  const handleAcceptBooking = async (bookingId) => {
-    if (!confirm('Are you sure you want to accept this booking?')) return
-    try {
-      const response = await apiService.post(`/provider/bookings/${bookingId}/accept`, {})
-      if (!response.error) {
-        showToast({
-          status: 'success',
-          title: 'Booking accepted',
-          message: 'The customer has been notified.',
-        })
-        loadBookings()
-      } else {
-        showToast({
-          status: 'error',
-          title: 'Unable to accept booking',
-          message: response.message || 'Something went wrong. Please try again.',
-        })
+  const handleAcceptBooking = (bookingId) => {
+    showConfirmation({
+      title: 'Accept Booking?',
+      message: 'Are you sure you want to accept this booking? The customer will be notified immediately.',
+      type: 'success',
+      confirmText: 'Yes, Accept',
+      onConfirm: async () => {
+        try {
+          const response = await apiService.post(`/provider/bookings/${bookingId}/accept`, {})
+          if (!response.error) {
+            showToast({
+              status: 'success',
+              title: 'Booking accepted',
+              message: 'The customer has been notified.',
+            })
+            loadBookings()
+          } else {
+            showToast({
+              status: 'error',
+              title: 'Unable to accept booking',
+              message: response.message || 'Something went wrong. Please try again.',
+            })
+          }
+        } catch (error) {
+          showToast({
+            status: 'error',
+            title: 'Error accepting booking',
+            message: error.message,
+          })
+        }
       }
-    } catch (error) {
-      showToast({
-        status: 'error',
-        title: 'Error accepting booking',
-        message: error.message,
-      })
-    }
+    })
   }
 
   const [showRejectModal, setShowRejectModal] = useState(false)
@@ -352,85 +392,106 @@ const ProviderDashboard = () => {
     }
   }
 
-  const handleCompleteBooking = async (bookingId) => {
-    if (!confirm('Are you sure you want to mark this work as completed?')) return
-    try {
-      const response = await apiService.post(`/provider/bookings/${bookingId}/complete`, {})
-      if (!response.error) {
-        showToast({
-          status: 'success',
-          title: 'Booking completed',
-          message: 'Great job! This booking is now marked as done.',
-        })
-        loadBookings()
-      } else {
-        showToast({
-          status: 'error',
-          title: 'Unable to complete booking',
-          message: response.message || 'Please try again.',
-        })
+  const handleCompleteBooking = (bookingId) => {
+    showConfirmation({
+      title: 'Complete Booking?',
+      message: 'Are you sure you want to mark this work as completed? This will update the status and notify the customer.',
+      type: 'success',
+      confirmText: 'Mark Completed',
+      onConfirm: async () => {
+        try {
+          const response = await apiService.post(`/provider/bookings/${bookingId}/complete`, {})
+          if (!response.error) {
+            showToast({
+              status: 'success',
+              title: 'Booking completed',
+              message: 'Great job! This booking is now marked as done.',
+            })
+            loadBookings()
+          } else {
+            showToast({
+              status: 'error',
+              title: 'Unable to complete booking',
+              message: response.message || 'Please try again.',
+            })
+          }
+        } catch (error) {
+          showToast({
+            status: 'error',
+            title: 'Error completing booking',
+            message: error.message,
+          })
+        }
       }
-    } catch (error) {
-      showToast({
-        status: 'error',
-        title: 'Error completing booking',
-        message: error.message,
-      })
-    }
+    })
   }
 
-  const handleAcceptInstantRequest = async (requestId) => {
-    if (!confirm('Accept this instant booking request?')) return
-    try {
-      const response = await apiService.post(`/provider/instant-hiring/requests/${requestId}/accept`, {})
-      if (!response.error) {
-        showToast({
-          status: 'success',
-          title: 'Request accepted!',
-          message: 'Customer has been notified.',
-        })
-        loadBookings()
-      } else {
-        showToast({
-          status: 'error',
-          title: 'Unable to accept',
-          message: response.message || 'Please try again.',
-        })
+  const handleAcceptInstantRequest = (requestId) => {
+    showConfirmation({
+      title: 'Accept Instant Request?',
+      message: 'You have 1 minute to arrive or contact the customer. Do you want to proceed?',
+      type: 'success',
+      confirmText: 'Accept Request',
+      onConfirm: async () => {
+        try {
+          const response = await apiService.post(`/provider/instant-hiring/requests/${requestId}/accept`, {})
+          if (!response.error) {
+            showToast({
+              status: 'success',
+              title: 'Request accepted!',
+              message: 'Customer has been notified.',
+            })
+            loadBookings()
+          } else {
+            showToast({
+              status: 'error',
+              title: 'Unable to accept',
+              message: response.message || 'Please try again.',
+            })
+          }
+        } catch (error) {
+          showToast({
+            status: 'error',
+            title: 'Error accepting request',
+            message: error.message,
+          })
+        }
       }
-    } catch (error) {
-      showToast({
-        status: 'error',
-        title: 'Error accepting request',
-        message: error.message,
-      })
-    }
+    })
   }
 
-  const handleRejectInstantRequest = async (requestId) => {
-    if (!confirm('Reject this instant booking request?')) return
-    try {
-      const response = await apiService.post(`/provider/instant-hiring/requests/${requestId}/reject`, {})
-      if (!response.error) {
-        showToast({
-          status: 'info',
-          title: 'Request rejected',
-          message: 'The request has been removed.',
-        })
-        loadBookings()
-      } else {
-        showToast({
-          status: 'error',
-          title: 'Unable to reject',
-          message: response.message || 'Please try again.',
-        })
+  const handleRejectInstantRequest = (requestId) => {
+    showConfirmation({
+      title: 'Reject Request?',
+      message: 'Are you sure you want to reject this instant booking request? It will be removed from your list.',
+      type: 'danger',
+      confirmText: 'Reject',
+      onConfirm: async () => {
+        try {
+          const response = await apiService.post(`/provider/instant-hiring/requests/${requestId}/reject`, {})
+          if (!response.error) {
+            showToast({
+              status: 'info',
+              title: 'Request rejected',
+              message: 'The request has been removed.',
+            })
+            loadBookings()
+          } else {
+            showToast({
+              status: 'error',
+              title: 'Unable to reject',
+              message: response.message || 'Please try again.',
+            })
+          }
+        } catch (error) {
+          showToast({
+            status: 'error',
+            title: 'Error rejecting request',
+            message: error.message,
+          })
+        }
       }
-    } catch (error) {
-      showToast({
-        status: 'error',
-        title: 'Error rejecting request',
-        message: error.message,
-      })
-    }
+    })
   }
 
   const handleRequestExpired = (requestId) => {
@@ -646,6 +707,7 @@ const ProviderDashboard = () => {
             isLoading={isLoadingServices}
             onRefresh={loadServices}
             showToast={showToast}
+            showConfirmation={showConfirmation}
           />
         )}
         {selectedTab === 2 && (
@@ -675,6 +737,35 @@ const ProviderDashboard = () => {
           />
         )}
       </div>
+
+      {/* Confirmation Modal */}
+      {confirmationModal.isOpen && (
+        <div className="modal-overlay" onClick={closeConfirmationModal}>
+          <div className="modal-content confirmation-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>{confirmationModal.title}</h3>
+              <button className="modal-close" onClick={closeConfirmationModal}>×</button>
+            </div>
+            <div className="modal-body">
+              <p className="modal-description">{confirmationModal.message}</p>
+            </div>
+            <div className="modal-footer">
+              <button className="btn-secondary" onClick={closeConfirmationModal}>
+                {confirmationModal.cancelText}
+              </button>
+              <button
+                className={`btn-${confirmationModal.type === 'danger' ? 'danger' : confirmationModal.type === 'success' ? 'success' : 'primary'}`}
+                onClick={() => {
+                  if (confirmationModal.onConfirm) confirmationModal.onConfirm()
+                  closeConfirmationModal()
+                }}
+              >
+                {confirmationModal.confirmText}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Rejection Modal */}
       {showRejectModal && (
@@ -1228,7 +1319,7 @@ const ProfileTab = ({ userData, onDataUpdate, showToast }) => {
 }
 
 // Services Tab Component
-const ServicesTab = ({ services, isLoading, onRefresh, showToast }) => {
+const ServicesTab = ({ services, isLoading, onRefresh, showToast, showConfirmation }) => {
   // Load categories when the Services tab mounts
   useEffect(() => {
     loadCategories();
@@ -1381,32 +1472,38 @@ const ServicesTab = ({ services, isLoading, onRefresh, showToast }) => {
     }
   }
 
-  const handleDeleteService = async (serviceId) => {
-    if (!confirm('Are you sure you want to delete this service?')) return
-
-    try {
-      const response = await apiService.delete(`/provider/services/${serviceId}`)
-      if (!response.error) {
-        onRefresh()
-        showToast({
-          status: 'info',
-          title: 'Service removed',
-          message: 'This service is no longer visible to customers.',
-        })
-      } else {
-        showToast({
-          status: 'error',
-          title: 'Unable to delete service',
-          message: response.message || 'Please try again.',
-        })
+  const handleDeleteService = (serviceId) => {
+    showConfirmation({
+      title: 'Delete Service?',
+      message: 'Are you sure you want to delete this service? It will no longer be visible to customers.',
+      type: 'danger',
+      confirmText: 'Delete Service',
+      onConfirm: async () => {
+        try {
+          const response = await apiService.delete(`/provider/services/${serviceId}`)
+          if (!response.error) {
+            onRefresh()
+            showToast({
+              status: 'info',
+              title: 'Service removed',
+              message: 'This service is no longer visible to customers.',
+            })
+          } else {
+            showToast({
+              status: 'error',
+              title: 'Unable to delete service',
+              message: response.message || 'Please try again.',
+            })
+          }
+        } catch (error) {
+          showToast({
+            status: 'error',
+            title: 'Error deleting service',
+            message: error.message,
+          })
+        }
       }
-    } catch (error) {
-      showToast({
-        status: 'error',
-        title: 'Error deleting service',
-        message: error.message,
-      })
-    }
+    })
   }
 
   return (

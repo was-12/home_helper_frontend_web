@@ -32,14 +32,9 @@ const LandingPage = () => {
   const navigate = useNavigate()
   const [categories, setCategories] = useState([])
   const [isLoading, setIsLoading] = useState(false)
-  const [currentImageIndex, setCurrentImageIndex] = useState(0)
 
   useEffect(() => {
     fetchCategories()
-    const interval = setInterval(() => {
-      setCurrentImageIndex((prev) => (prev + 1) % heroImages.length)
-    }, 4000)
-    return () => clearInterval(interval)
   }, [])
 
   const fetchCategories = async () => {
@@ -95,7 +90,7 @@ const LandingPage = () => {
               Fast, reliable, and secure – the Home Helper way.
             </p>
             <div className="hero-cta-group">
-              <button className="primary-btn" onClick={() => navigate('/signup')}>
+              <button className="primary-btn" onClick={handleScrollToServices}>
                 Book Now
               </button>
               <button className="secondary-btn" onClick={handleScrollToServices}>
@@ -104,30 +99,39 @@ const LandingPage = () => {
             </div>
           </div>
 
-          <div className="hero-slider-container fade-in-right">
-            <div className="hero-slider-frame">
-              {heroImages.map((img, index) => (
-                <div
-                  key={index}
-                  className={`slider-image ${index === currentImageIndex ? 'active' : ''}`}
-                  style={{ backgroundImage: `url(${img})` }}
-                />
-              ))}
-              <div className="slider-overlay">
-                <div className="slider-card glass-card float-animation">
-                  <span className="icon">⭐</span>
-                  <div>
-                    <strong>4.9/5 Rating</strong>
-                    <p>from happy customers</p>
-                  </div>
-                </div>
-                <div className="slider-card glass-card float-animation-delayed">
-                  <span className="icon">🛡️</span>
-                  <div>
-                    <strong>Verified Pros</strong>
-                    <p>Background checked</p>
-                  </div>
-                </div>
+          <div className="hero-visual fade-in-right">
+            <div className="hero-circle-bg"></div>
+            <div className="floating-card card-1 glass-card">
+              <span className="icon">🧹</span>
+              <div className="card-info">
+                <strong>Cleaning</strong>
+                <span>Booked 2m ago</span>
+              </div>
+            </div>
+            <div className="floating-card card-2 glass-card">
+              <span className="icon">⭐</span>
+              <div className="card-info">
+                <strong>4.9 Rating</strong>
+                <span>Verified Pros</span>
+              </div>
+            </div>
+            <div className="floating-card card-3 glass-card">
+              <span className="icon">🛡️</span>
+              <div className="card-info">
+                <strong>Secure</strong>
+                <span>Payment Protection</span>
+              </div>
+            </div>
+            <div className="hero-app-mockup glass-card">
+              <div className="mockup-header">
+                <div className="mockup-dot"></div>
+                <div className="mockup-dot"></div>
+              </div>
+              <div className="mockup-body">
+                <div className="mockup-row"></div>
+                <div className="mockup-row short"></div>
+                <div className="mockup-card"></div>
+                <div className="mockup-card"></div>
               </div>
             </div>
           </div>
@@ -190,7 +194,47 @@ const LandingPage = () => {
           )}
         </section>
 
-        <section className="how-it-works-section">
+        <section id="solutions" className="solutions-section">
+          <div className="section-header center-text">
+            <span className="eyebrow">Tailored For You</span>
+            <h2>Solutions for Everyone</h2>
+            <p>Specific services designed for your unique needs.</p>
+          </div>
+          <div className="solutions-grid">
+            <div className="solution-card float-animation">
+              <div className="solution-icon-wrapper">
+                <span className="solution-icon">🔧</span>
+              </div>
+              <div className="solution-content">
+                <h3>Need a Plumber?</h3>
+                <p>Leaky taps or pipe issues? Get expert plumbers instantly.</p>
+                <button className="text-btn" onClick={() => navigate('/instant-booking')}>Book Now →</button>
+              </div>
+            </div>
+            <div className="solution-card float-animation-delayed">
+              <div className="solution-icon-wrapper">
+                <span className="solution-icon">💼</span>
+              </div>
+              <div className="solution-content">
+                <h3>Want Work in Home?</h3>
+                <p>Join our team of professionals and earn on your schedule.</p>
+                <button className="text-btn" onClick={() => navigate('/signup')}>Join Us →</button>
+              </div>
+            </div>
+            <div className="solution-card float-animation">
+              <div className="solution-icon-wrapper">
+                <span className="solution-icon">🎓</span>
+              </div>
+              <div className="solution-content">
+                <h3>Need Help for Hostellite?</h3>
+                <p>Affordable and quick services tailored for students.</p>
+                <button className="text-btn" onClick={() => navigate('/instant-booking')}>Get Help →</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="how-it-works" className="how-it-works-section">
           <div className="section-header center-text">
             <span className="eyebrow">Process</span>
             <h2>How Home Helper Works</h2>

@@ -48,20 +48,20 @@ const ChatbotModal = ({ onClose, userName }) => {
 
     const options = [
         {
-            label: 'Where is my booking?',
-            response: 'You can track your bookings in the "Track Requests" section of your dashboard. If a provider has accepted, you will see their details there.',
+            label: 'How to book instantly?',
+            response: 'Go to your dashboard and click "Instant Booking". Select a service, and we will find a provider for you immediately!',
+        },
+        {
+            label: 'Schedule a service?',
+            response: 'You can schedule a booking for later by selecting "Schedule Booking" from the services menu. Choose your preferred time and provider.',
+        },
+        {
+            label: 'Where are my bookings?',
+            response: 'Track all your requests in the "Track Requests" section on your dashboard. You can see status updates in real-time.',
         },
         {
             label: 'How do I pay?',
-            response: 'Once a provider completes the job, you will see a "Pay Now" button on the booking card. We accept credit cards and cash on delivery.',
-        },
-        {
-            label: 'Cancel a booking',
-            response: 'To cancel a booking, go to "Recent Bookings", find the booking you want to cancel, and click the "Cancel" button. Note that cancellation fees may apply if the provider is already on their way.',
-        },
-        {
-            label: 'Contact Support',
-            response: 'You can reach our human support team at support@homehelper.com or call us at +92-300-1234567.',
+            response: 'Once a job is marked as completed by the provider, you can proceed to payment directly through the app.',
         },
     ]
 

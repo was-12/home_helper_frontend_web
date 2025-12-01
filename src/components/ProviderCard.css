@@ -136,33 +136,8 @@
 
 .badge-icon {
     font-size: 1.2rem;
-}
-
-.badge-text {
-    font-weight: 700;
-}
-
-/* Compact Book Button */
-.provider-book-btn-compact {
-    width: 100%;
-    padding: 0.75rem 1rem;
-    border: none;
     border-radius: 12px;
-    background: linear-gradient(135deg, #7c3aed, #5b21b6);
-    color: white;
-    font-weight: 600;
-    font-size: 0.95rem;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    box-shadow: 0 8px 20px rgba(124, 58, 237, 0.25);
-}
-
-.provider-book-btn-compact:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 12px 28px rgba(124, 58, 237, 0.35);
-}
-
-border: 1px solid rgba(148, 163, 184, 0.1);
+    border: 1px solid rgba(148, 163, 184, 0.1);
 }
 
 .sentiment-bar-wrapper {
@@ -233,4 +208,47 @@ border: 1px solid rgba(148, 163, 184, 0.1);
         flex-direction: row;
         justify-content: space-between;
     }
+}
+/* Action Buttons Container */
+.provider-action-buttons {
+    display: flex;
+    gap: 0.75rem;
+}
+
+.provider-view-btn {
+    flex: 1;
+    padding: 0.75rem 1rem;
+    border: 2px solid #7c3aed;
+    border-radius: 12px;
+    background: white;
+    color: #7c3aed;
+    font-weight: 600;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.provider-view-btn:hover {
+    background: linear-gradient(135deg, rgba(124, 58, 237, 0.1), rgba(91, 33, 182, 0.1));
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(124, 58, 237, 0.15);
+}
+
+.provider-book-btn-compact {
+    flex: 1;
+    padding: 0.75rem 1rem;
+    border: none;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #7c3aed, #5b21b6);
+    color: white;
+    font-weight: 600;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 8px 20px rgba(124, 58, 237, 0.25);
+}
+
+.provider-book-btn-compact:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 28px rgba(124, 58, 237, 0.35);
 }

@@ -7,6 +7,13 @@ const InstantBookingConfirm = () => {
     const navigate = useNavigate()
     const location = useLocation()
     const provider = location.state?.provider
+    const selectedSubcategory = location.state?.selectedSubcategory
+
+    // Determine the service details to use
+    const serviceToBook = selectedSubcategory || (provider?.services && provider.services[0])
+    const subcategoryId = serviceToBook?.subcategoryId
+    const serviceName = serviceToBook?.subcategoryName || serviceToBook?.name || provider?.subcategory || 'Service'
+    const hourlyRate = serviceToBook?.hourlyRate ? Number(serviceToBook.hourlyRate) : Number(provider?.hourlyRate || 0)
 
     const [description, setDescription] = useState('')
     const [address, setAddress] = useState('')
@@ -17,7 +24,7 @@ const InstantBookingConfirm = () => {
     const [errors, setErrors] = useState({})
 
     if (!provider) {
-        navigate('/booking/instant')
+        navigate('/instant-booking')
         return null
     }
 
@@ -52,7 +59,7 @@ const InstantBookingConfirm = () => {
         try {
             const response = await apiService.post('/customer/instant-hiring/request', {
                 providerId: provider.providerId,
-                subcategoryId: provider.services[0]?.subcategoryId,
+                subcategoryId: subcategoryId,
                 requestType: 'instant',
                 description,
                 location: {
@@ -67,7 +74,7 @@ const InstantBookingConfirm = () => {
 
             if (!response.error && response.data?.success) {
                 alert('✅ Booking request sent successfully! Provider will respond soon.')
-                navigate('/booking/instant')
+                navigate('/instant-booking')
             } else {
                 alert('❌ Failed to send booking request: ' + (response.data?.message || 'Unknown error'))
             }
@@ -81,37 +88,102 @@ const InstantBookingConfirm = () => {
 
     const isValid = description.trim() && address.trim() && hours.trim() && parseFloat(hours) > 0
 
+    // Calculate price breakdown
+    const calculateCosts = () => {
+        const hoursValue = parseFloat(hours) || 0
+        const serviceCost = hourlyRate * hoursValue
+        const platformFee = serviceCost * 0.10 // 10% platform fee
+        const total = serviceCost + platformFee
+
+        return {
+            serviceCost: serviceCost.toFixed(2),
+            platformFee: platformFee.toFixed(2),
+            total: total.toFixed(2),
+            upfront: (total * 0.50).toFixed(2),      // 50% upfront
+            remaining: (total * 0.50).toFixed(2)     // 50% on completion
+        }
+    }
+
+    const costs = calculateCosts()
+
     return (
         <div className="instant-booking-confirm">
-            {/* Header */}
             <div className="confirm-header">
-                <button className="back-btn" onClick={() => navigate(-1)}>
+                <button className="back-btn" onClick={() => navigate('/instant-booking')}>
                     <span className="back-icon">←</span>
                 </button>
                 <h1 className="confirm-title">Book Service</h1>
             </div>
 
             <div className="confirm-container">
-                {/* Provider Info Card */}
-                <div className="provider-info-card animate-slide-up">
-                    <div className="provider-header-mini">
-                        <div className="provider-avatar-mini">
-                            {provider.imageUrl ? (
-                                <img src={provider.imageUrl} alt={provider.name} />
-                            ) : (
-                                <div className="avatar-placeholder-mini">
-                                    {(provider.name || 'P').charAt(0).toUpperCase()}
-                                </div>
+                <div className="provider-card-enhanced" style={{ marginBottom: '20px' }}>
+                    <div className="provider-card-header">
+                        <div className="provider-avatar-compact">
+                            {(provider.imageUrl || provider.profileImageUrl) ? (
+                                <img
+                                    src={provider.imageUrl || provider.profileImageUrl}
+                                    alt={provider.name}
+                                    onError={(e) => {
+                                        e.target.style.display = 'none'
+                                        if (e.target.nextSibling) e.target.nextSibling.style.display = 'flex'
+                                    }}
+                                />
+                            ) : null}
+                            <div className="avatar-placeholder-compact" style={{ display: (provider.imageUrl || provider.profileImageUrl) ? 'none' : 'flex' }}>
+                                {(provider.name || 'P').charAt(0).toUpperCase()}
+                            </div>
+                        </div>
+                        <div className="provider-main-info">
+                            <h3 className="provider-name">{provider.name}</h3>
+                            {provider.rating >= 4 && (
+                                <span className="verified-badge" title="Verified Provider">✓</span>
+                            )}
+                            <p className="provider-location">📍 {provider.area}, {provider.city}</p>
+                            <div className="provider-rating-row">
+                                <span className="rating-stars">⭐ {Number(provider.rating || 0).toFixed(1)}</span>
+                                <span className="rating-count">({provider.totalReviews || 0} reviews)</span>
+                            </div>
+                            <p className="service-name">⚡ {serviceName}</p>
+                            {provider.completedServices > 0 && (
+                                <p style={{ fontSize: '0.85rem', color: '#10b981', fontWeight: '600', marginTop: '0.5rem' }}>
+                                    ✓ {provider.completedServices} jobs completed
+                                </p>
                             )}
                         </div>
-                        <div className="provider-details-mini">
-                            <h3>{provider.name}</h3>
-                            <p>📍 {provider.area}, {provider.city}</p>
-                            <p className="service-name">⚡ {provider.subcategory}</p>
+                    </div>
+                    <div className="provider-stats-compact">
+                        <div className="stat-item">
+                            <span className="stat-label">Rate</span>
+                            <span className="stat-value">Rs {hourlyRate.toLocaleString()}/hr</span>
                         </div>
                     </div>
-                    <div className="rate-badge">
-                        Rs {Number(provider.hourlyRate || 0).toLocaleString()}/hr
+                </div>
+
+                {/* Price Breakdown */}
+                <div className="price-breakdown-card animate-slide-up" style={{ animationDelay: '0.05s' }}>
+                    <h3>💰 Cost Breakdown</h3>
+                    <div className="cost-row">
+                        <span>Service Cost ({hours || 0}h × Rs {hourlyRate.toLocaleString()})</span>
+                        <strong>Rs {Number(costs.serviceCost).toLocaleString()}</strong>
+                    </div>
+                    <div className="cost-row">
+                        <span>Platform Fee (10%)</span>
+                        <strong>Rs {Number(costs.platformFee).toLocaleString()}</strong>
+                    </div>
+                    <hr style={{ margin: '10px 0', border: 'none', borderTop: '1px solid #e0e0e0' }} />
+                    <div className="cost-row total">
+                        <span style={{ fontSize: '1.1rem', fontWeight: '600' }}>Total Cost</span>
+                        <strong style={{ fontSize: '1.3rem', color: '#7C3AED' }}>Rs {Number(costs.total).toLocaleString()}</strong>
+                    </div>
+                    <div className="cost-split" style={{ marginTop: '15px', padding: '12px', background: '#f9fafb', borderRadius: '8px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                            <span>💳 Pay Now (50%):</span>
+                            <strong style={{ color: '#10b981' }}>Rs {Number(costs.upfront).toLocaleString()}</strong>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span>✅ Pay on Completion (50%):</span>
+                            <strong style={{ color: '#6b7280' }}>Rs {Number(costs.remaining).toLocaleString()}</strong>
+                        </div>
                     </div>
                 </div>
 

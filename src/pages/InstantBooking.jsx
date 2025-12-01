@@ -23,6 +23,11 @@ const InstantBooking = () => {
   const [toast, setToast] = useState(null)
   const toastTimerRef = useRef(null)
 
+  // Refs for auto-scrolling
+  const subcategoryRef = useRef(null)
+  const locationRef = useRef(null)
+  const resultsRef = useRef(null)
+
   // Load categories and locations on mount
   useEffect(() => {
     const token = localStorage.getItem('auth_token')
@@ -140,6 +145,11 @@ const InstantBooking = () => {
     setProviders([])
     setSubcategories(category.subcategories || [])
     console.log('Selected category:', category)
+
+    // Auto-scroll to subcategories
+    setTimeout(() => {
+      subcategoryRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 100)
   }
 
   // Handle subcategory selection (no longer auto-fetches providers)
@@ -147,6 +157,11 @@ const InstantBooking = () => {
     setSelectedSubcategory(subcategory)
     setProviders([])
     console.log('Selected subcategory:', subcategory)
+
+    // Auto-scroll to location
+    setTimeout(() => {
+      locationRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }, 100)
   }
 
   // Handle Find Provider button click
@@ -200,7 +215,22 @@ const InstantBooking = () => {
 
   // Handle booking a provider
   const handleBookProvider = (provider) => {
-    navigate('/booking/instant/confirm', { state: { provider } })
+    navigate('/booking/instant/confirm', {
+      state: {
+        provider,
+        selectedSubcategory
+      }
+    })
+  }
+
+  // Handle viewing provider profile
+  const handleViewProfile = (provider) => {
+    navigate('/provider/profile', {
+      state: {
+        provider,
+        prioritySubcategoryId: selectedSubcategory?.subcategoryId
+      }
+    })
   }
 
   // Fetch providers from backend
@@ -339,7 +369,7 @@ const InstantBooking = () => {
 
                 {/* Subcategory Selection */}
                 {selectedCategory && subcategories.length > 0 && (
-                  <div className="form-group">
+                  <div className="form-group" ref={subcategoryRef}>
                     <label>2. Choose a Subcategory</label>
                     <div className="subcategory-grid">
                       {subcategories.map((subcategory) => (
@@ -358,7 +388,7 @@ const InstantBooking = () => {
 
                 {/* City and Area Dropdowns */}
                 {selectedSubcategory && (
-                  <>
+                  <div ref={locationRef}>
                     <div className="form-group">
                       <label>3. Select Your City</label>
                       <select
@@ -403,7 +433,7 @@ const InstantBooking = () => {
                         {isLoadingProviders ? 'Searching...' : '🔍 Find Providers'}
                       </button>
                     </div>
-                  </>
+                  </div>
                 )}
 
                 {/* Loading Providers */}
@@ -485,7 +515,7 @@ const InstantBooking = () => {
 
         {/* Provider Results */}
         {selectedSubcategory && !isLoadingProviders && (
-          <section className="booking-results">
+          <section className="booking-results" ref={resultsRef}>
             <h3>Available Providers</h3>
             <p>
               {providers.length > 0
@@ -503,6 +533,8 @@ const InstantBooking = () => {
                     key={provider.providerId}
                     provider={provider}
                     onBook={handleBookProvider}
+                    onViewProfile={handleViewProfile}
+                    subcategoryId={selectedSubcategory?.subcategoryId}
                   />
                 ))}
               </div>

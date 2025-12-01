@@ -2,18 +2,24 @@ import { useState, useEffect } from 'react'
 import apiService from '../services/api.service'
 import './ProviderCard.css'
 
-const ProviderCard = ({ provider, onBook }) => {
+const ProviderCard = ({ provider, onBook, onViewProfile, subcategoryId }) => {
     const [sentiment, setSentiment] = useState(null)
     const [loadingSentiment, setLoadingSentiment] = useState(true)
 
     useEffect(() => {
         loadSentiment()
-    }, [provider.providerId])
+    }, [provider.providerId, subcategoryId])
 
     const loadSentiment = async () => {
         setLoadingSentiment(true)
         try {
-            const response = await apiService.get(`/providers/${provider.providerId}/reviews/sentiment`)
+            // Build URL with optional subcategoryId parameter
+            let url = `/providers/${provider.providerId}/reviews/sentiment`
+            if (subcategoryId) {
+                url += `?subcategoryId=${subcategoryId}`
+            }
+
+            const response = await apiService.get(url)
             if (!response.error && response.data?.success && response.data?.data) {
                 setSentiment(response.data.data)
             }
@@ -24,28 +30,65 @@ const ProviderCard = ({ provider, onBook }) => {
         }
     }
 
-    // Calculate good review percentage
-    const goodReviewPercent = sentiment?.positive || 0
+    // Get provider image from various possible fields
+    const providerImage = provider.imageUrl ||
+        provider.profileImageUrl ||
+        provider.profileImage ||
+        provider.image ||
+        provider.profilePicture ||
+        provider.photo ||
+        provider.avatar
+
+    // Debug logging
+    useEffect(() => {
+        console.log('🖼️ Provider Card Image Debug:', {
+            providerId: provider.providerId,
+            name: provider.name,
+            imageUrl: provider.imageUrl,
+            profileImageUrl: provider.profileImageUrl,
+            profileImage: provider.profileImage,
+            image: provider.image,
+            finalImage: providerImage,
+            allKeys: Object.keys(provider)
+        })
+    }, [provider, providerImage])
 
     return (
         <div className="provider-card-enhanced">
             {/* Header */}
             <div className="provider-card-header">
                 <div className="provider-avatar-compact">
-                    {provider.imageUrl ? (
-                        <img src={provider.imageUrl} alt={provider.name} />
-                    ) : (
-                        <div className="avatar-placeholder-compact">
-                            {(provider.name || 'P').charAt(0).toUpperCase()}
-                        </div>
-                    )}
+                    {providerImage ? (
+                        <img
+                            src={providerImage}
+                            alt={provider.name}
+                            onError={(e) => {
+                                console.error('❌ Image failed to load:', providerImage)
+                                e.target.style.display = 'none'
+                                const placeholder = e.target.nextSibling
+                                if (placeholder) {
+                                    placeholder.style.display = 'flex'
+                                }
+                            }}
+                            onLoad={() => {
+                                console.log('✅ Image loaded successfully:', providerImage)
+                            }}
+                        />
+                    ) : null}
+                    <div
+                        className="avatar-placeholder-compact"
+                        style={{ display: providerImage ? 'none' : 'flex' }}
+                    >
+                        {(provider.name || 'P').charAt(0).toUpperCase()}
+                    </div>
                 </div>
                 <div className="provider-main-info">
                     <h3 className="provider-name">{provider.name || 'Provider'}</h3>
                     <p className="provider-location">📍 {provider.area}, {provider.city}</p>
                     <div className="provider-rating-row">
-                        <span className="rating-stars">⭐ {Number(provider.rating || 0).toFixed(1)}</span>
-                        <span className="rating-count">({provider.totalReviews || 0})</span>
+                        <span className="rating-count" style={{ marginLeft: 0, fontSize: '0.9rem', color: '#64748b' }}>
+                            {provider.totalReviews || 0} Reviews
+                        </span>
                     </div>
                 </div>
             </div>
@@ -57,12 +100,8 @@ const ProviderCard = ({ provider, onBook }) => {
                     <span className="stat-value">Rs {Number(provider.hourlyRate || 0).toLocaleString()}/hr</span>
                 </div>
                 <div className="stat-item">
-                    <span className="stat-label">Bookings</span>
-                    <span className="stat-value">{provider.completedServices || 0}</span>
-                </div>
-                <div className="stat-item">
-                    <span className="stat-label">Exp</span>
-                    <span className="stat-value">{provider.experienceYears || 0}y</span>
+                    <span className="stat-label">Experience</span>
+                    <span className="stat-value">{provider.experienceYears || 0} years</span>
                 </div>
             </div>
 
@@ -89,10 +128,15 @@ const ProviderCard = ({ provider, onBook }) => {
                 </div>
             )}
 
-            {/* Book Button */}
-            <button className="provider-book-btn-compact" onClick={() => onBook(provider)}>
-                Book Now
-            </button>
+            {/* Action Buttons */}
+            <div className="provider-action-buttons">
+                <button className="provider-view-btn" onClick={() => onViewProfile(provider)}>
+                    👤 View Profile
+                </button>
+                <button className="provider-book-btn-compact" onClick={() => onBook(provider)}>
+                    📅 Book Now
+                </button>
+            </div>
         </div>
     )
 }
